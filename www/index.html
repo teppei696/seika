@@ -1,0 +1,249 @@
+<!DOCTYPE HTML>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <meta http-equiv="Content-Security-Policy" content="default-src * data: gap: https://ssl.gstatic.com; style-src * 'unsafe-inline'; script-src * 'unsafe-inline' 'unsafe-eval'">
+    
+    <!-- monaca plugin loader -->
+    <script src="components/loader.js"></script>    
+    <link rel="stylesheet" href="components/loader.css"> 
+    
+    <link rel="stylesheet" href="css/onsen-css-components-default.css">
+    <link rel="stylesheet" href="css/app.css">
+    
+    <link href="http://netdna.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+    <script src="js/jsoauth.js"></script>
+    <script src="js/underscore.js"></script>
+    <script>
+   // jQuery(function(){    
+      // URL to be redirected after the OAuth authentication is done
+      var callbackUrl = "https://twitter.com/kyomachi_seika";
+      
+      // jsOAuth object
+      var oauth = OAuth({
+        consumerKey: "***", // REPLACE HERE TO YOUR CONSUMER KEY or API KEY
+        consumerSecret: "***", // REPLACE HERE TO YOUR CONSUMER SECRET OR API SECRET
+        callbackUrl: callbackUrl,
+        requestTokenUrl: "https://api.twitter.com/oauth/request_token",
+        authorizationUrl: "https://api.twitter.com/oauth/authorize",
+        accessTokenUrl: "https://api.twitter.com/oauth/access_token"
+      });
+      
+      // Get oAuth Request Token and display authentication window (3-legged request)
+      
+      function connect() {
+      
+          oauth.fetchRequestToken(function (url) {
+            console.log("Opening Request Token URL: " + url);
+            showAuthWindow(url);
+          }, function (data) {
+            console.log(JSON.stringify(data));
+          });
+      }
+     
+      // Display Twitter authentication page.
+      // When the user logs in, obtain a verifier and get Access Token
+      function showAuthWindow(url) {
+        var browser = window.open(url, '_blank', 'location=yes');
+        
+        browser.addEventListener('loadstart', function(event) {
+            
+          if (event.url.indexOf(callbackUrl) >= 0) {
+            event.url.match(/oauth_verifier=([a-zA-Z0-9]+)/);
+            oauth.setVerifier(RegExp.$1);
+            oauth.fetchAccessToken(function (data) {
+              getTwits();
+              browser.close();
+            }, function (data) {
+              console.log(JSON.stringify(data));
+            });
+          }
+        });
+        
+      }
+      
+      // Call API and get a specific user's timeline
+      function getTwits() {
+        $('#btnLogin').hide();
+
+        $('#tweet').css('background-color','red');
+        $('#mention').css('background-color','#4cda64');
+        $('#retweet').css('background-color','#4cda64');
+
+        oauth.getJSON('https://api.twitter.com/1.1/statuses/user_timeline.json?screen_name=kyomachi_seika&count=5', 
+        function(data) {
+          console.log("=====getTwits=====");
+          showTwits(data);
+        }, function(data){
+          console.log(JSON.stringify(data));
+        });
+      }
+      
+      function getMention() {
+        $('#btnLogin').hide();
+
+        $('#tweet').css('background-color','#4cda64');
+        $('#mention').css('background-color','red');
+        $('#retweet').css('background-color','#4cda64');
+
+        oauth.getJSON('https://api.twitter.com/1.1/statuses/mentions_timeline.json?count=5', 
+        function(data) {
+          console.log("=====getMention=====");
+          showTwits(data);
+        }, function(data){
+          console.log(JSON.stringify(data));
+        });
+      }
+
+      function getRetweet() {
+        $('#btnLogin').hide();
+
+        $('#tweet').css('background-color','#4cda64');
+        $('#mention').css('background-color','#4cda64');
+        $('#retweet').css('background-color','red');
+
+        oauth.getJSON('https://api.twitter.com/1.1/statuses/retweets_of_me.json?count=5', 
+        function(data) {
+          console.log("=====getRetweet=====");
+          showTwits(data);
+        }, function(data){
+          console.log(JSON.stringify(data));
+        });
+      }
+
+// Display twit information. Uses underscore.js for templating
+      function showTwits(data) {
+        var i = 0;
+        document.getElementById("item-list-body").innerHTML = "";
+        //document.getElementById("item-list").innerHTML = innerHTML;
+        var template = _.template(document.getElementById("item-list-item").innerHTML);
+        _.each(data, function(item) {
+          console.log(JSON.stringify(item));
+          if (item.user.screen_name == "kyomachi_seika" || item.user.screen_name == "dummyseika") {
+              document.getElementById("item-list-body").innerHTML += template(item);
+          }
+        });
+      }
+
+      function createMessage() {
+        $('#btnLogin').hide();
+        message = window.prompt("セイカに話しかけてください", "");
+        if (message !== "") {
+            msgStr = encodeURI('@dummyseika ' + message);
+            console.log(msgStr);
+            var data = {
+                status: '@dummyseika ' + message
+            };
+            oauth.post('https://api.twitter.com/1.1/statuses/update.json', data, 
+            function(data) {
+                console.log("=====投稿完了=====");
+                setTimeout( function() {
+                    console.log("=====メンション表示開始=====");
+                    getMention();
+                }, 5000);
+            }, function(data){
+                console.log("=====投稿失敗=====");
+                console.log(JSON.stringify(data));
+            });
+            //oauth.postJSON('https://api.twitter.com/1.1/statuses/update.json?status=' + msgStr,
+            //    {
+            //    'status': '@dummyseika ' + message
+            //    }, 
+            //function(data) {
+            //    console.log("=====投稿完了=====");
+            //}, function(data){
+            //    console.log("=====投稿失敗=====");
+            //    console.log(JSON.stringify(data));
+            //});
+        }
+      }
+
+    function getOmikuji() {
+        console.log("=====投稿開始=====");
+        $('#btnLogin').hide();
+        var data = {
+            status: '@dummyseika おみくじを引く '
+        };
+        oauth.post('https://api.twitter.com/1.1/statuses/update.json', data, 
+        function(data) {
+            console.log("=====投稿完了=====");
+            setTimeout( function() {
+                getMention();
+            }, 5000);
+        }, function(data){
+            console.log("=====投稿失敗=====");
+            console.log(JSON.stringify(data));
+        });
+      }
+
+
+//});
+    </script>
+  </head>
+  <body class="page">
+    <div class="navigation-bar">
+      <div class="navigation-bar__left">
+        <span class="icon-button--quiet navigation-bar__line-height">
+          <!-- NOOP -->
+          <i class="fa fa-twitter navi-fontsize"></i>
+        </span>
+      </div>
+      <div class="navigation-bar__center">
+        <span class="navigation-bar__title navigation-bar__line-height">京町セイカ</span>
+      </div>
+      <div class="navigation-bar__right" onclick="createMessage();">
+        <span class="icon-button--quiet navigation-bar__line-height font-bold">
+          <!-- NOOP -->
+          <i class="fa fa-search navi-rightadjust"></i>
+        </span>
+      </div>
+    </div>
+    
+    
+    <div class="list scroll-area">
+        <div id="btnLogin">
+            <button onclick="connect();" class="button--large">Connect to 京町セイカ</button>
+        </div>
+        <div id="btnLogin">
+            <button onclick="getTwits();" class="button--cta" id="tweet"><i class="fa fa-twitter navi-fontsize"></i></button>
+            <button onclick="getMention();" class="button--cta" id="mention"><i class="fa fa-comments navi-fontsize"></i></button>
+            <button onclick="getRetweet();" class="button--cta" id="retweet"><i class="fa fa-external-link navi-fontsize"></i></button>
+            <button onclick="createMessage();" class="button--cta" id="message"><i class="fa fa-heart navi-fontsize"></i></button>
+            <button onclick="getOmikuji();" class="button--cta" id="omikuji"><i class="fa fa-star-o navi-fontsize"></i></button>
+        </div>
+            
+        
+      <ul class="list__container" id="item-list">
+        <!-- using micro-templating trick -->
+        <script type="text/template" id="item-list-item">
+          <li class="list__item list__item__line-height list-item-container">
+            <div class="list-item-main">
+              <div class="list-item-left">
+                <img src="<%=user.profile_image_url%>" class="list-item-face">
+              </div>
+              <div class="list-item-right">
+                <span class="list-item-name">
+                  <%=user.name%>
+                  <span class="lucent">@<%=user.screen_name%></span>
+                </span>
+                <br />
+                <span class="list-item-text">"<%=text%></span>
+              </div>
+            </div>
+          </li>
+        </script>
+        <span id = "item-list-body"></span>
+      </ul>
+    </div>
+  </body>
+  
+  <script>
+    // Just to add more top padding for iOS new UI
+    if (/(iPad|iPhone|iPod)/g.test(navigator.userAgent)) {
+      document.getElementsByClassName("navigation-bar")[0].style.paddingTop = "20px";
+      document.getElementsByClassName("navigation-bar")[0].style.height = "64px";
+      document.getElementsByClassName("scroll-area")[0].style.paddingTop = "20px";
+    }
+  </script>
+</html>
